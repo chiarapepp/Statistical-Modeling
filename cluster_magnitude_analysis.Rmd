@@ -1,0 +1,739 @@
+---
+title: "Analisi Inferenziale sulla Magnitudine Assoluta dei Clusters Globulari della Via Lattea "
+author: "Chiara Peppicelli"
+date: "`r Sys.Date()`"
+output: pdf_document
+latex_engine: xelatex
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduzione
+
+## Globular Clusters Dataset
+Il dataset oggetto del mio studio è "Globclus_prop" che fornisce le misurazioni di 20 proprietà astronomiche e astrofisiche relative a  147 ammassi globulari presenti nella Via Lattea. Queste misurazioni sono state estratte dal catalogo di Webbink (1985), il quale rappresenta un punto di riferimento fondamentale nell'analisi di tali strutture celesti.
+
+Per via della complessità intrinseca degli studi astrofisici ho deciso di procedere inizialmente con un'approfondimento delle variabili presenti nel dataset al fine di comprenderne il significato base.
+Di seguito è riportata una lista esauriente delle variabili coinvolte, con le loro unità di misura. 
+
+\begin{enumerate}
+  \item Name: Nome comune 
+  \item Gal.long: Longitudine galattica (gradi)
+  \item Gal.lat: Latitudine galattica (gradi)
+  \item R.sol: Distanza dal Sole (kiloparsecs, kpc)
+  \item R.GC: Distanza dal Centro Galattico (kpc)
+  \item Metal: Logaritmo della metallicità rispetto a quella solare
+  \item Mv: Magnitudine assoluta, è una misura della luminosità del cluster, osservato da una distanza standard
+  \item r.core: Raggio del "nucleo" (parsecs, pc), è la distanza dal centro del cluster entro la quale la densità superficiale delle stelle si dimezza rispetto al valore medio
+  \item r.tidal: Raggio di marea (pc), è il raggio dal centro del cluster entro il quale le forze di marea causate da un corpo esterno diventano dominanti rispetto alle forze gravitazionali interne
+  \item Conc: Parametro di concentrazione del nucleo 
+  \item log.t: Logaritmo del tempo di rilassamento centrale (anni), è il tempo necessario affinchè il cluster raggiunga uno stato di equilibrio dinamico a seguito delle interazioni gravitazionali
+  \item log.rho: Logaritmo della densità centrale (Masse solari per pc cubo) 
+  \item S0: Velocità di dispersione centrale (km/s), la velocità media con cui le stelle del cluster si muovono attorno al centro
+  \item V.esc: Velocità di fuga centrale (km/s), la velocità minima che una stella deve avere per sfuggire dalla gravità del cluster
+  \item VHB: Livello del ramo orizzontale (mag), rappresenta una specifica fase evolutiva delle stelle
+  \item E.B-V: Eccesso di colore (mag), è una misura della differenza tra il colore apparente di un oggetto celeste e il suo colore atteso sulla base di modelli teorici o stime, dovuta alla presenza di polvere interstellare
+  \item B-V: Indice di colore (mag)
+  \item Ellipt: Ellitticità
+  \item V.t: Magnitudine V integrata (mag), è la luminosità totale di un cluster, come appare dalla Terra, nella fascia di luce visibile
+  \item CSB: Luminosità superficiale centrale (mag per arcsec al quadrato), descrive la quantità di luce emmessa per unità di area, calcolata al centro del cluster 
+\end{enumerate}
+
+Dopo essermi informata sul significato scientifico di tali proprietà ho deciso di prendere come obiettivo di questo progetto uno studio della proprietà di magnitudine assoluta degli ammassi globulari, descritta dalla variabile "Mv".
+
+La magnitudine assoluta, in astronomia, è la magnitudine apparente che un oggetto avrebbe se si trovasse ad una distanza dall'osservatore di 10 parsec o 1 unità astronomica a seconda del tipo di oggetto (stellare/galattico o corpo del Sistema solare), in altri termini è una misura della luminosità intrinseca di un oggetto. Più un oggetto è intrinsecamente luminoso, più la sua magnitudine assoluta è numericamente bassa, anche negativa (nel nostro dataset scorre tra -10.400 a -3.300, con media : -7.431).
+
+Lo scopo che mi sono dunque prefissata per questo elaborato è capire quali ed in che modo le variabili nel dataset ”Globclus_prop” abbiano effetti sulla magnitudine assoluta. Il tutto approcciato nell’ottica di selezionare un modello efficiente per la previsione, in relazione alla sua parsimonia e semplicità. 
+
+## Operazioni preliminari iniziali 
+Prima di passare alla vera e propria fase di analisi del dataset, ho iniziato con alcune operazioni preliminari.
+
+Data l'elevata presenza di osservazioni nelle quali non erano presenti le misurazioni di una o più variabili ho deciso di rimuovere tali osservazioni tramite il comando "na.omit" di R, riducendo così il dataset da 147 a 113 osservazioni, risultando in un dataset più significativo per il mio fine ultimo di fare previsione. Inoltre ho cambiato il nome del dataset in modo da poterlo utilizzare con più facilità (ho evitato invece di cambiare i nomi delle variabili in quanto risultavano già esaustivamente chiare). 
+
+```{r clusters}
+# Caricamento del dataset, rinominazione e rimozione na  
+library(ggplot2)
+require(graphics)
+require(astrodatR)
+data(GlobClus_prop)
+clusters <- GlobClus_prop
+clusters <- na.omit(clusters)
+
+# Sommario 
+
+summary(clusters)
+```
+
+Questo dataset è caratterizzato da un'elevata complessità dovuta al gran numero di variabili presenti. 
+Per semplificare l'analisi dunque, ho avviato un'esplorazione preliminare mirata alla rimozione di alcune di esse. 
+La prima variabile eliminata è stata "Name", considerata insignificante per qualsiasi analisi inferenziale. Inoltre, dato che mi sto focalizzando sulla variabile "Mv", ho scelto di trascurare "V.t", la magnitudine integrata, poiché rappresenta semplicemente un altro modo di descrivere la magnitudine di un ammasso globulare (in particolare è la magnitudine che l'oggetto avrebbe se fosse compresso in un singolo punto luminoso) e non aggiunge rilevanza al mio studio.
+
+Dopo un'analisi della matrice di covarianza, di cui l'output è omesso per via delle sue dimensioni considerevoli, ho deciso di eliminare una delle due variabili che rappresentavano la distanza del corpo celeste, ovvero "R.sol" o "R.GC", in quanto risultavano altamente correlate (0.97358443). 
+
+Per il mio studio, ho scelto di mantenere come misura della distanza la variabile "R.sol", distanza dal sole (in quanto approssimabile a quella dalla Terra), anziché quella dal centro galattico. 
+
+
+Qui di seguito è riportato il dataset dopo l'eliminazione di tali variabili.
+
+```{r tolgo}
+clusters <- clusters[c(-1,-5,-19)]
+summary(clusters)
+
+```
+
+La fase successiva per esplorare le relazioni tra le variabili ha coinvolto la creazione di scatterplot al fine di ottenere una comprensione visuale delle associazioni. Tuttavia, data la complessità dovuta al gran numero di variabili, ho deciso di suddividere ulteriormente il dataset in diverse categorie, quali variabili di posizione, dinamiche e fisiche. Questo approccio è stato adottato per facilitare la visualizzazione e l'analisi di ciascuna categoria, mantenendo in ognuna di esse la variabile "Mv" come riferimento.
+
+Ho deciso di realizzare tale analisi preliminare per comprendere la natura delle relazioni esistenti e per guidare le decisioni successive riguardo all'inclusione o all'esclusione di specifiche variabili nel modello statistico.
+
+### Variabili di posizione 
+Dopo aver isolato il sottodataset "clusters_posizione", composto esclusivamente dalle variabili "Mv" e le coordinate di posizione, quali "Gal.long", "Gal.lat" e "R.sol", ho utilizzato il comando "pairs" di R per creare uno scatterplot rappresentante le relazioni bivariate tra le variabili selezionate.
+
+```{r plot}
+clusters_posizione <- clusters[,c(-4,-6,-7,-8,-9,-10,-11,-12,-13,-14,-15,-16,-17)]
+summary(clusters_posizione)
+# pairs(clusters_posizione, panel = panel.smooth)
+```
+![**Scatterplot tra "Mv" e le variabili di posizione**](C:/Users/chiar/OneDrive/Immagini/statistica/scatterplot.png)
+
+
+Graficamente emerge l'assenza di una correlazione lineare tra le variabili di posizione e la magnitudine assoluta. 
+Tuttavia per avere più informazioni ho tentato di costruire un modello lineare utilizzando solamente queste variabili, il quale è riportato di seguito.
+
+```{r c}
+qm <- lm(Mv ~ Gal.long + Gal.lat + R.sol, data = clusters)
+summary(qm)
+```
+
+Le variabili di posizione non risultano statisticamente significative in un modello di regressione lineare per la mia variabile risposta "Mv". 
+Inizialmente, avevo già considerato l'opzione di escluderle, poiché la magnitudine assoluta è una proprietà intrinseca del cluster globulare e, di conseguenza, non dipende dalla sua posizione spaziale. Il fatto che la regressione lineare non abbia significatività, in questo caso, conferma le ipotesi iniziali di escludere queste variabili. 
+
+È importante notare che queste variabili potrebbero avere un potenziale impatto su altri parametri ma per via delle dimensioni considerevoli del dataset ho scelto di ometterle. 
+
+### Variabili dinamiche
+Definisco il sottodataset "clusters_dinamico", composto esclusivamente dalle variabili "Mv" e le proprietà dinamiche dei clusters ovvero "r.core", "r.tidal", "Conc", "log.t", "log.rho", "V.esc", "S0", e studio lo scatterplot come fatto precedentemente nel caso delle variabili di posizione.
+
+Di seguito il sottodataset e la matrice di correlazione tra le variabili dinamiche. 
+
+```{r dinamico}
+clusters_dinamico <- clusters[,c(-1,-2,-3,-4,-13,-14,-15,-16,-17)]
+summary(clusters_dinamico)
+cor(clusters_dinamico[-1])
+
+```
+
+Dall'osservazione della matrice è possibile notare un'alta correlazione tra "S0" e "V.esc" (circa 0.99), e di conseguenza, ho deciso di mantenere soltanto una delle due variabili. 
+Di seguito riportato il plot tra le due variabili che evidenzia una forte dipendenza lineare.
+
+```{r velocità}
+v <- ggplot(clusters, aes(x=S0,y= V.esc))+ geom_point()+ geom_smooth(method="lm")
+plot(v)
+```
+
+In particolare, ho scelto di eliminare la velocità di uscita "V.esc" come variabile, poiché è una misura derivabile dalle altre (essendo dipendente dalla massa e dal raggio dell'ammasso globulare) e poichè sembrava più interessante la variabile dispersione centrale delle velocità, che fornisce informazioni sulla distribuzione delle velocità delle stelle all'interno dell'ammasso. Un'alta dispersione centrale "S0" indica una maggiore diversità nelle velocità delle stelle, che può essere correlata a una dinamica più complessa dell'ammasso globulare.
+
+Come fatto precedentemente per avere più informazioni ho tentato di costruire un modello lineare utilizzando solamente queste variabili, il quale è riportato di seguito.
+
+![**Scatterplot tra "Mv" e le variabili dinamiche**](C:/Users/chiar/OneDrive/Immagini/statistica/dina.png)
+
+```{r plotti}
+# pairs(clusters_dinamico[-8], panel = panel.smooth)
+qm <- lm(Mv ~ r.core + r.tidal + Conc + log.t + log.rho + S0, data = clusters)
+summary(qm)
+```
+
+Le variabili "Conc" e "log.rho" sono altamente significative in un modello di regressione lineare con la magnitudine come variabile di risposta. 
+
+Sorprendentemente, il logaritmo del tempo di rilassamento ("log.t") mostra una significatività elevata, anche se inizialmente consideravo di scartarlo. Questa variabile rappresenta una misura della scala temporale entro cui le interazioni gravitazionali tra le singole stelle all'interno dell'ammasso portano a cambiamenti nei loro parametri orbitali e nelle loro velocità, e inizialmente sembrava avere poco a che fare con la magnitudine e quindi la luminosità del cluster. Tuttavia, alla luce dei risultati, ho deciso di mantenerla come possibile variabile esplicativa nella ricerca del mio modello predittivo finale.
+
+Al contrario, i raggi che descrivono l'ammasso globulare non risultano significativi, tuttavia ho deciso di eliminare solo uno di essi, "r.core" (la variabile con il p-value più grande nel modello). Questa decisione è coerente con ipotesi fisiche in quanto la variabile "r.core" rappresenta il raggio entro cui si dimezza la magnitudine delle stelle presenti nell'ammasso globulare e quindi non mi da informazioni sulla magnitudine assoluta del cluster.
+Ho deciso di tenere in considerazione per la ricerca del mio modello la variabile "r.tidal" che mi rappresenta il raggio entro il quale le stelle dell'ammasso globulare appartengono al bacino gravitazionale del cluster, perchè, pur non essendo risultata significativa in questo modello, è risultata altamente significativa in un modello lineare con solo le variabili non significative (omesso per rendere la lettura più fluida), e poichè per motivi di interpretazione, ero interessata a mantenere una misura della dimensione del cluster.
+
+Per quanto riguarda la variabile "S0", essa, in questo modello con solo proprietà dinamiche, non è risultata molto significativa , ma comunque ho scelto di non escluderla in questa fase preliminare.
+
+
+### Variabili fisiche
+
+In modo analogo a ciò che ho fatto precedentemente, definisco il sottodataset "clusters_fisico", composto esclusivamente dalle variabili "Mv" e le proprietà fisiche dei clusters ovvero "Metal", "E.B.V", "B.V", "Ellipt", "VHB" e "CSBt".
+
+Di seguito il sottodataset e la matrice di correlazione tra le variabili fisiche. 
+
+```{r fisico}
+clusters_fisico <- clusters[,c(-1,-2,-3,-6,-7,-8,-9,-10,-11,-12)]
+summary(clusters_fisico)
+cor(clusters_fisico[-2])
+```
+
+Per prima cosa ho deciso di escludere la variabile "E.B.V", l'eccesso di colore, che si riferisce alla differenza tra l'indice di colore osservato dell'ammasso e il suo indice di colore intrinseco o atteso.
+La motivazione alla base di questa esclusione è che "E.B.V" è risultata altamente correlata (0.95) con la variabile "B.V", l'indice di colore, e tra le due "B.V" è risultata più significativa, più intuitiva e facilmente comprensibile dal punto di vista interpretativo.
+
+Di seguito un modello di regressione lineare semplice tra le variabili fisiche. 
+
+![**Scatterplot tra "Mv" e le variabili fisiche**](C:/Users/chiar/OneDrive/Immagini/statistica/fisico.png)
+
+```{r fisicoplot}
+# pairs(clusters_fisico[c(-3,-7)], panel = panel.smooth)
+qm <- lm(Mv ~ Metal + VHB + B.V + Ellipt+ CSBt, data = clusters)
+summary(qm)
+```
+
+Nonostante alcune variabili non abbiano mostrato significatività ho scelto di conservarle tutte per costruire un modello predittivo, dato che il mio parametro d'interesse riguarda una proprietà fisica, ad esclusione della variabile "CSBt" (la luminosità superficiale centrale); questa è stata esclusa poiché è risultata la meno significativa del modello. Inoltre, rappresentando una misura della luminosità concentrata nella regione centrale dell'ammasso, ed essendo espressa in magnitudini per arcsec al quadrato, inserirla nello studio avrebbe portato a una duplicazione dei dati riferiti alla luminosità, risultando meno rilevante ai fini dell'inferenza sulla stessa.
+
+
+# Modello di regressione lineare
+
+Al termine dell'analisi preliminare, ho selezionato un insieme specifico di variabili rilevanti. Per evitare confusione e semplificare l'analisi successiva, procedo con la creazione di un nuovo dataset rinominato "gb", contenente solo le variabili di interesse che sono risultate significative nel contesto del mio studio.
+
+```{r nom}
+gb <- clusters[c(-1,-2,-3,-6,-12,-14,-17)]
+summary(gb)
+```
+
+## Regressione lineare semplice 
+ 
+Inizialmente, al fine di identificare possibili connessioni e interazioni all'interno del mio dataset ridotto, ho optato per l'implementazione di un modello di regressione lineare semplice. Nello specifico, osservando i grafici precedenti, avevo individuato potenziali effetti e relazioni lineari tra la mia variabile obiettivo "Mv" e le altre variabili. 
+
+
+Di seguito, sono presentati i grafici di confronto tra "Mv" e le singole variabili, oltre a una tabella che rappresenta il riepilogo ottenuto da una regressione lineare semplice con ciascuna variabile. 
+I valori del coefficiente di determinazione e altri dettagli sono inclusi nel resoconto, mentre il "summary" completo è stato omesso per facilitare la lettura. 
+\begin{center}
+```{r m1, echo=FALSE, out.width='70%'}
+knitr::include_graphics("C:/Users/chiar/OneDrive/Immagini/statistica/1.png")
+```
+
+```{r m2, echo=FALSE, out.width='70%'}
+knitr::include_graphics("C:/Users/chiar/OneDrive/Immagini/statistica/2.png")
+```
+
+```{r m3, echo=FALSE, out.width='70%'}
+knitr::include_graphics("C:/Users/chiar/OneDrive/Immagini/statistica/3.png")
+```
+
+```{r m4, echo=FALSE, out.width='70%'}
+knitr::include_graphics("C:/Users/chiar/OneDrive/Immagini/statistica/4.png")
+```
+
+```{r m5, echo=FALSE, out.width='70%'}
+knitr::include_graphics("C:/Users/chiar/OneDrive/Immagini/statistica/5.png")
+```
+```{r m6, echo=FALSE, out.width='70%'}
+knitr::include_graphics("C:/Users/chiar/OneDrive/Immagini/statistica/6.png")
+```
+```{r m7, echo=FALSE, out.width='70%'}
+knitr::include_graphics("C:/Users/chiar/OneDrive/Immagini/statistica/7.png")
+```
+```{r m8, echo=FALSE, out.width='70%'}
+knitr::include_graphics("C:/Users/chiar/OneDrive/Immagini/statistica/8.png")
+```
+```{r m9, echo=FALSE, out.width='70%'}
+knitr::include_graphics("C:/Users/chiar/OneDrive/Immagini/statistica/9.png")
+```
+
+\end{center}         
+
+\newpage
+Confronto tra i modelli lineari precedenti :
+
+\begin{enumerate}
+
+\item lm1: Si nota un effetto lineare negativo di "Conc" su "Mv" (coefficiente di -1.1529) con una evidente significatività (p-value 4.11e-05), Adjusted R-squared: 0.1335
+
+\item lm2: Si osserva un effetto lineare negativo piccolo di "r.tidal" su "Mv" (coefficiente di -0.010872), la variabile risulta significativa (p-value 0.000932) e Adjusted R-squared in peggioramento rispetto a lm1 (0.08625)
+
+\item lm3: "log.t" presenta un effetto lineare negativo più marcato rispetto a "r.tidal" (coefficiente di -0.1364). Tuttavia, il p-value non è significativo (p-value 0.375) e l'Adjusted-R-squared è negativo (-0.001837).
+
+\item lm4: "log.rho" mostra un effetto lineare negativo più accentuato di "log.t" (coefficiente di -0.43758) ed è altamente significativo (p-value 6.82e-07) con un Adjusted-R-squared di 0.1928.
+
+\item lm5: "S0" ha un effetto lineare negativo minore rispetto al precedente (coefficiente di -0.30064), con p-value molto  significativo (p-value <2e-16 *) e Adjusted-R-squared molto buono (0.6641) .
+
+\item lm6: "Metal" è la prima variabile ad avere un effetto lineare positivo (in linea con le conoscenze teoriche per cui più è alta la metallicita di un cluster meno è luminoso) (coefficiente 0.2377) però ha p-value non significativo (p-value 0.296) e Adjusted-R-squared molto piccolo (0.0009274).
+
+\item lm7: "VHB" ha un un effetto lineare positivo più basso di "Metal" (coefficiente 0.05737), e ha un p-value meno significativo (p-value 0.427) e Adjusted-R-squared negativo (-0.00326) .
+
+\item lm8: "Bv" ha un effetto lineare positivo (coefficiente di 0.2255), p-value non significativo (0.392) e Adjusted-R-squared negativo (-0.002328).
+
+\item lm9: "Ellipt" mostra un effetto lineare positivo (coefficiente 0.3715) con p value molto significativo (p-value 2.24e-14) e Adjusted-R-squared 0.4046.
+
+\end{enumerate}
+
+Nei modelli di regressione lineare diretta, le variabili "VHB", "BV", "Metal" e "log.t" hanno mostrato una bassa significatività. 
+
+Tuttavia, prima di procedere con l'eliminazione di queste variabili, che potrebbero rivelarsi altamente significative in un modello più completo, ho scelto di esaminare il comportamento in un contesto più ampio.
+
+Per fare ciò, ho iniziato con un modello completo utilizzando tutte le variabili nel dataset "gb" e successivamente ho rimosso gradualmente le variabili che mostravano una minore significatività. Ho interrotto questo processo quando tutte le variabili rimanenti risultavano significative, seguendo il metodo "backwards" di eliminazione delle variabili basato sul p-value. Questo approccio mira a garantire che le variabili mantenute siano statisticamente rilevanti nel contesto di un modello più completo.
+
+```{r tuttee di gb}
+# Parto un modello lineare con tutte le variabili del dataset, includendo anche quelle che erano 
+# risultate non significative nei modelli di regressione lineare semplici
+
+qm_dataset <-lm(Mv ~ Metal+  log.t + VHB + B.V + r.tidal + Conc + log.rho +  S0 +Ellipt, data=clusters)
+summary(qm_dataset)
+
+# La variabile risultata meno significativa è "B.V" (p-value 0.73147)
+
+qm_dataset1 <-lm(Mv ~ Metal+  log.t + VHB + r.tidal + Conc + log.rho +  S0 +Ellipt, data=clusters)
+
+# Ometto i prossimi summary per facilitare la lettura 
+
+# La variabile meno significativa è "Metal" (p-value 0.52553)
+
+qm_dataset2 <-lm(Mv ~  log.t + VHB  + r.tidal + Conc + log.rho +  S0 +Ellipt, data=clusters)
+
+# La variabile meno significativa è "S0" (p-value 0.23990) 
+
+qm_dataset3 <-lm(Mv ~  log.t + VHB +  r.tidal + Conc + log.rho  +Ellipt, data=clusters)
+
+# La variabile meno significativa è "Conc" (p-value 0.064067) 
+
+qm_dataset4 <-lm(Mv ~  log.t + VHB +  r.tidal  + log.rho  +Ellipt, data=clusters)
+summary(qm_dataset4)
+
+# Ho lasciato il summary di questo modello in quanto le variabili risultano tutte significative 
+# ma non altamente significative (ordine 0.01) quindi ho deciso di continuare eliminando 
+# la variabile "log.rho" (p-value 0.0330)
+
+qm_dataset5 <-lm(Mv ~  log.t + VHB +  r.tidal   +Ellipt, data=clusters)
+
+# La variabile meno significativa è "log.t" (p-value 0.553) 
+
+qm_dataset6 <-lm(Mv ~   VHB +  r.tidal   +Ellipt, data=clusters)
+
+# La variabile meno significativa è "r.tidal" (p-value 0.0844) 
+
+qm_dataset7 <-lm(Mv ~  VHB + Ellipt, data=clusters)
+summary(qm_dataset7)
+
+# Rimangono due variabili altamente significative 
+```
+
+
+Grazie a questo approccio di analisi "backwards", a partire da tutte le variabili, arrivo alla definizione del modello :
+
+*Mv ~  VHB + Ellipt * 
+
+Entrambe le variabili sono risultate altamente significative (p-value: < 2.2e-16), e il valore dell'Adjusted R-squared è notevolmente elevato (0.9985). Nonostante nella regressione lineare semplice la variabile "VHB" sembrasse poco significativa, qua è apparsa come l'unica insieme ad "Ellipt" ad avere un'alta significatività e quindi ho scelto di mantenerla nella ricerca del modello finale.
+
+D'altra parte, ho deciso di rimuovere le altre variabili che non sono risultate significative nel confronto diretto. 
+La variabile "BV", che rappresenta l'indice di colore, è stata esclusa in quanto è risultata la meno significativa tra tutte.
+La variabile "log.t", che rappresenta il tempo di rilassamento, era stata considerata a priori per l'eliminazione, poiché, intuitivamente, non sembrava influenzare direttamente la magnitudine assoluta. 
+
+Le variabili rimanenti nel mio studio, che sono risultate significative individualmente, compongono un elenco significativo di sei parametri, "r.tidal", "Conc", "log.rho", "S0", "Ellipt" e "VHB" i quali contribuiscono collettivamente alla spiegazione della variabilità della magnitudine assoluta.
+
+
+# Scelta del modello lineare 
+
+
+
+## Selezione modello con metodo p-value direzione "backward" 
+
+Partendo dal modello completo andiamo ogni volta ad eliminare la variabile
+a cui è associato il p-value più alto.
+
+Modello completo:
+```{r metodo complet}
+# Modello completo
+mq <-lm(Mv ~  r.tidal + Conc + log.rho + S0 + Ellipt + VHB, data=gb)
+summary(mq)
+
+#  La variabile meno significativa è log.rho (p-value  0.7547)
+# Ometto i promissi summary per facilitare la lettura 
+
+mq1 <-lm(Mv ~  r.tidal + Conc + S0 + Ellipt + VHB, data=gb)
+
+# La variabile meno significativa è Conc (0.15016)
+mq2 <-lm(Mv ~  r.tidal + S0 + Ellipt + VHB, data=gb)
+
+# La variabile meno significativa è S0 (0.0667)
+
+mq3 <- lm(Mv ~  r.tidal + Ellipt + VHB, data=gb)
+summary(mq3)
+
+# La variabile meno significativa è r.tidal (0.0844)
+
+mq4 <- lm(Mv ~  Ellipt + VHB, data=gb)
+summary(mq4)
+```
+Terminiamo la procedura quando tutte le variabili risultano significative ovvero quando otteniamo il modello:
+
+*Mv ~  Ellipt + VHB *
+
+
+## Selezione modello con metodo p-value, direzione "forward" 
+
+Iniziamo la procedura considerando il modello nullo con sola intercetta.
+
+```{r metodo vuoto}
+qm0 <-lm(Mv ~  1, data=gb)
+summary(qm0)
+```
+
+Già precedentemente abbiamo stimato la significatività dei modelli semplici e avevamo osservato che quello con la variabile più significativa è quello dove è stata aggiunto il parametro "S0".
+
+```{r metodo vuoto1}
+qm1 <-lm(Mv ~  S0 , data=gb)
+summary(qm1)
+```
+Iteriamo aggiungendo le variabili in ordine, dal p-value più basso, fintanto che risultano tutte significative.  
+
+```{r metodo vo1}
+qm2 <-lm(Mv ~  S0 + Ellipt, data=gb)
+
+qm3 <-lm(Mv ~  S0 + Ellipt + log.rho, data=gb)
+
+qm4 <-lm(Mv ~  S0 + Ellipt + log.rho + Conc, data=gb)
+summary(qm4)
+
+qm5 <-lm(Mv ~ Conc + log.rho + S0 + Ellipt + r.tidal, data=gb)
+summary(qm5)
+```
+
+Se aggiungiamo la variabile "r.tidal", ossia la successiva con p-value più basso, si ottiene la perdità di significatività di alcune variabili ("Conc" e "log.rho"), quindi il modello dove sono tutte significative rimane quello precedente alla sua aggiunta, ovvero : 
+
+*Mv ~  S0 + Ellipt + log.rho + Conc* 
+
+
+## Selezione del modello con metodo p-value misto 
+
+Il metodo misto p-value è una procedura che combina sia l'approccio forward che backward nella costruzione del modello.
+Il processo inizia come il metodo p-value forward con l'aggiunta sequenziale delle variabili risultate più significative; poi continua fino a quando l'aggiunta di ulteriori variabili non comporta la perdita di significatività di quelle già presenti. In questo caso, esse, vengono rimosse. La procedura di aggiunta e rimozione si ripete fino a quando non ci saranno ulteriori variabili da aggiungere. 
+
+```{r metodo vuoto00}
+# Dato che l'aggiunta iterativa delle variabili è stata già vista per il metodo forward
+# ho deciso di omettere i summary 
+
+qm1 <-lm(Mv ~  S0 , data=gb)
+
+qm2 <-lm(Mv ~  S0 + Ellipt, data=gb)
+
+
+qm3 <-lm(Mv ~  S0 + Ellipt + log.rho, data=gb)
+
+qm4 <-lm(Mv ~  S0 + Ellipt + log.rho + Conc, data=gb)
+
+# Con l'aggiunta di r.tidal si ha una perdità di significatività per le variabili Conc e log.rho 
+
+qm5 <-lm(Mv ~ Conc + log.rho + S0 + Ellipt + r.tidal, data=gb)
+summary(qm5)
+
+qm6 <-lm(Mv ~  S0 + Ellipt + r.tidal, data=gb)
+summary(qm6)
+
+# Risultano tutte significative così 
+# Potrei pensare di fermarmi al modello 
+
+# Mv ~  S0 + Ellipt + r.tidal
+
+
+# Continuo aggiungendo ultima variabile rimasta, VHB
+
+qm7 <-lm(Mv ~  S0 + Ellipt + r.tidal + VHB, data=gb)
+summary(qm7)
+
+# S0 perde di significatività
+
+
+qm8 <-lm(Mv ~  Ellipt + r.tidal + VHB, data=gb)
+summary(qm8)
+
+# r.tidal perde di significatività
+
+qm9 <-lm(Mv ~  Ellipt  + VHB, data=gb)
+summary(qm9)
+
+```
+Alla fine poichè non ho altre variabili da aggiungere mi ritrovo con il modello : 
+
+*Mv ~  Ellipt  + VHB*
+
+
+## Selezione modello con metodo di penalizzazione AIC (direzione forward, backward e both)
+Successivamente ho deciso di utilizzare algoritmi iterativi per esplorare lo spazio dei modelli per
+trovare quelli più promettenti. 
+Il criterio che ho utilizzato in questo caso è denominato "AIC" e l’esplorazione è stata fatta partendo dai modelli completo e con solo l’intercetta, in direzioni "forward", "backward" e "both".
+
+```{r aic}
+# Do nome al modello nullo e il modello completo
+qmc <-lm(Mv ~  r.tidal + Conc + log.rho + S0 + Ellipt + VHB, data=gb)
+qm0 <-lm(Mv ~  1, data=gb) 
+
+back_aic <- step(qmc, scope=formula(qm0), direction ="backward", k=2)
+# Summary del modello ottenuto con direzione backward
+summary(back_aic)
+
+forw_aic <- step(qm0, scope=formula(qmc), direction="forward", k=2)
+# Summary del modello ottenuto con direzione forward
+summary(forw_aic)
+
+both_aic <- step(qm0, scope=formula(qmc), direction="both", k=2)
+# Summary del modello ottenuto con direzione both
+summary(both_aic)
+
+```
+Alla fine ottengo questi modelli: 
+
+\begin{itemize}
+\item  Modello direzione "backward" : \textit{Mv $\sim$  S0 + r.tidal + Ellipt + VHB + Conc}
+\item Modello direzione "forward" : \textit{Mv $\sim$ S0 + r.tidal + Ellipt + VHB + Conc}
+\item Modello direzione "both" : \textit{Mv $\sim$ S0 + r.tidal + Ellipt + VHB + Conc}
+
+\end{itemize}
+
+## Selezione modello con metodo di penalizzazione BIC (direzione forward, backward e both)
+Analogamente a quanto fatto in precedenza, ho analizzato i modelli ottenuti con il criterio "BIC", tramite un’esplorazione in direzioni "forward", "backward" e "both".
+Nel criterio di penalizzazione BIC si seleziona k = log(numero di osservazioni) che, quindi, dopo aver omesso i valori na, è pari a 113 per il dataset.
+
+```{r Bic}
+# Do nome al modello nullo e il modello completo
+qmc <-lm(Mv ~  r.tidal + Conc + log.rho + S0 + Ellipt + VHB, data=gb)
+qm0 <-lm(Mv ~  1, data=gb) 
+
+back_bic <- step(qmc, scope=formula(qm0), direction ="backward", k=log(113))
+# Summary del modello ottenuto con direzione backward
+summary(back_bic)
+
+forw_bic <- step(qm0, scope=formula(qmc), direction="forward", k = log(113))
+# Summary del modello ottenuto con direzione forward
+summary(forw_bic)
+
+both_bic <- step(qm0, scope=formula(qmc), direction="both", k=log(113))
+# Summary del modello ottenuto con direzione both
+summary(both_bic)
+```
+
+Alla fine ottengo questi modelli: 
+\begin{itemize}
+\item  Modello direzione "backward" :\textit{Mv $\sim$ Ellipt + VHB}
+\item Modello direzione "forward" : \textit{Mv $\sim$ S0 + r.tidal + Ellipt + VHB}
+\item Modello direzione "both" : \textit{Mv $\sim$ Ellipt + VHB}
+
+\end{itemize}
+
+
+# Confronto modelli
+
+I modelli ottenuti con criterio del p-value sono: 
+\begin{itemize}
+\item Modello direzione "backward" e "both" \textit{Mv $\sim$ Ellipt + VHB} : le variabili risultano estremamente significative (p-value <2e-16) con un elevato Adjusted R-squared (0.9985). La variabile "VHB" ha un effetto negativo (-1.00378) mentre la variabile "Ellipt" (0.99509) un effetto positivo, sulla magnitudine, relativamente elevati. 
+
+Questo modello è sicuramente uno dei migliori dal punto di vista della significatività e interpretabilità, uno degli scopi di questo elaborato. Ciò lo rende uno dei possibili candidati come scelta finale del caso di studio.
+ 
+\item Modello direzione "forward" \textit{Mv ~  S0 + Ellipt + log.rho + Conc} : le variabili risultano tutte estremamente significative. I parametri "S0" e "Conc" hanno un effetto negativo sulla variabile obiettivo ("S0" -0.32392, "Conc" -0.86375) mentre Ellipt (0.18629) e "log.rho" (0.49500) hanno un effetto positivo. Il più significativo è "S0". 
+Questo modello appare come molto significativo ed esplicativo e rappresenta una possibile scelta ai fini dello studio.
+\end{itemize}
+
+I modelli ottenuto con criterio "AIC" sono caratterizzati dalla bassa significatività e l'elevato numero di variabili.
+Utilizzando il criterio di penalizzazione "AIC", con direzioni "both","forward" e "backward" ho ottenuto lo stesso metodo *Mv ~ S0 + r.tidal + Ellipt + VHB + Conc* . 
+In questo modello, la variabile "Conc" è risultata non significativa (0.15016) e altre due variabili risultavano con un p-value significativo ma alto, "S0"(0.15016) e "r.tidal" (0.00868). Quindi, è stato scartato per la mia scelta finale, sia per la scarsa significatività di alcune variabili, sia perchè non rappresenta un modello facilmente interpretabile per la grande quantità di variabili.
+
+I modelli ottenuti con criterio "BIC" : 
+\begin{itemize}
+\item  Modello direzione "backward" e "both" \textit{Mv $\sim$ Ellipt + VHB} : stesso modello ottenuto con il criterio del p-value, direzione "both", quindi esposto precedentemente. 
+
+\item Modello direzione "forward" : \textit{Mv $\sim$ S0 + r.tidal + Ellipt + VHB} : la variabile "S0" non risulta significativa (p-value 0.0667) e "r.tidal" ha un p-value di 0.0127, che seppur significativo non lo è altamente. Anche questo modello quindi è stato scartato. 
+
+\end{itemize}
+
+Alla fine i modelli più promettenti, in quanto gli unici dove tutte le variabili sono significative, sono  *Mv ~ Ellipt + VHB* e *Mv ~  S0 + Ellipt + log.rho + Conc*. 
+Il primo è caratterizzato dalla sua semplicità e alta significatività. Il secondo è risultato molto significativo ma allo stesso tempo ha un Adjusted R-squared definitivamente peggiore (0.7966 rispetto a 0.9985 del modello con solo due variabili). 
+
+Il modello che quindi rispecchia maggiormente l'obiettivo di interpretabilità, semplicità e parsimonia è quello ottenuto minimizzando "BIC" (direzione "backward" e "both") e p-value (anche esso direzione "backward" e "both"). Per confermare tale scelta ho deciso di fare uno studio grafico. 
+
+# Modelli grafici
+
+## Grafi orientati: Bayesian Networks
+Come secondo approccio di studio ho deciso di utilizzare il modello della rete bayesiana, modello grafico probabilistico che rappresenta un insieme di variabili stocastiche con le loro dipendenze condizionali attraverso l'uso di un grafo aciclico diretto (DAG).
+
+Ho optato per l'utilizzo dell’algoritmo Hill Climbing, algoritmo greedy che
+massimizza una funzione di score. In particolare, dato che il mio obiettivo è quello di ottenere un grafo coerente con l'analisi effettuata precedentemente ho deciso di concentrarmi sul criterio di penalizzazione "BIC" ma ho analizzato anche i risultati ottenuti con il criterio "AIC". 
+
+In una prima fase esplorativa ho costruito il DAG a partire da tutte le variabili del dataset "gb", includendo anche quelle che, dopo la regressione semplice, erano state escluse dal modello completo. 
+
+Per prima cosa ho provato a costruire il DAG dicotomizzando le variabili continue presenti nel mio dataset. Tuttavia dicotomizzare le variabili ha restituito un grafo non interpretabile. 
+
+Ho deciso dunque di provare altre suddivisioni di seguito il metodo utilizzato. 
+
+```{r bayesian }
+library(bnlearn)
+gb_disc3 <- gb
+gb_disc3 <- data.frame(gb_disc3)
+
+# Discretizazione delle variabili nel dataframe gb
+num_bins <- 3  
+
+# Ciclo attraverso le colonne e discretizzazione 
+for (col in names(gb_disc3)) {
+  gb_disc3[[col]] <- cut(gb_disc3[[col]], breaks = num_bins, labels = FALSE)
+}
+
+gb_disc3 <- lapply(gb_disc3, as.factor)
+gb_disc3 <- as.data.frame(gb_disc3)
+
+# Summary del dataframe discretizzato
+summary(gb_disc3)
+
+gb_disc3.bn <- hc(gb_disc3, score = 'bic')  # hill climbing
+
+```
+\newpage
+
+Di seguito la Bayesian Network ottenuta tramite criterio "BIC", con le variabili continue divise in terzili. 
+![](C:/Users/chiar/OneDrive/Immagini/statistica/tutte3bic.png)
+\newpage
+
+Di seguito la Bayesian Network generata con criterio "AIC", suddividendo le variabili continue in terzili.
+![](C:/Users/chiar/OneDrive/Immagini/statistica/plot_zoom.png)
+Anche se sono stati utilizzati criteri diversi, l'unica apparente dipendenza di "MV" è quella dalla variabile "Ellipt" a sua volta dipendente dalla variabile "VHB". Curiosamente, in questo grafico, "Mv" è solo indirettamente collegato a "VHB", mentre il modello di regressione lineare sembrava premiare la sua presenza diretta.
+
+
+Ho provato ad aumentare il numero di suddivisioni in cui sono state discretizzate le variabili.
+
+```{r bayesian2 }
+gb_disc4 <- gb
+gb_disc4 <- data.frame(gb_disc4)
+# Discretizazione delle variabili nel dataframe gb
+num_bins <- 4  
+
+# Ciclo attraverso le colonne e discretizzazione 
+for (col in names(gb_disc4)) {
+  gb_disc4[[col]] <- cut(gb_disc4[[col]], breaks = num_bins, labels = FALSE)
+}
+
+gb_disc4 <- lapply(gb_disc4, as.factor)
+gb_disc4 <- as.data.frame(gb_disc4)
+
+# Summary del dataframe discretizzato
+summary(gb_disc4)
+
+gb_disc4.bn <- hc(gb_disc4, score = 'bic')  # hill climbing
+
+```
+
+Di seguito la Bayesian Network generata con criterio "BIC" e le variabili continue divise in quartili. 
+![](C:/Users/chiar/OneDrive/Immagini/statistica/tutte4bic.png)
+\newpage
+Di seguito la Bayesian Network generata con criterio "AIC" e le variabili continue divise in quartili. 
+![](C:/Users/chiar/OneDrive/Immagini/statistica/tutte4.png)
+Si nota come, aumentando il numero di suddivisioni, le dipendenze cambiano. Nello specifico non si ha più la dipendenza da "Ellipt" ma emerge la sola dipendenza dalla variabile "S0". Quest'ultima risultava altamente significativa nel modello di regressione lineare semplice per la variabile obiettivo "Mv". 
+
+Successivamente, ho costruito la Bayesian Network utilizzando soltanto i parametri presenti nel modello completo, ossia quelli che erano risultati più significativi. 
+
+
+```{r bayesioooei}
+gb_di3 <- gb[c(-1,-5,-9)]
+gb_di3 <- data.frame(gb_di3)
+# Discretizazione delle variabili nel dataframe ridotto gb
+num_bins <- 3  
+
+# Ciclo attraverso le colonne e discretizzazione 
+for (col in names(gb_di3)) {
+  gb_di3[[col]] <- cut(gb_di3[[col]], breaks = num_bins, labels = FALSE)
+}
+
+gb_di3 <- lapply(gb_di3, as.factor)
+gb_di3 <- as.data.frame(gb_di3)
+
+# Summary del dataframe discretizzato
+summary(gb_di3)
+
+
+gb_bic.bn <- hc(gb_di3, score = 'bic')  # hill climbing
+
+# Di seguito la Bayesian Network generata con criterio "BIC"
+# costruita con le variabili risultate più significative, suddivise in terzili 
+
+plot(gb_bic.bn)
+
+gb_aic.bn <- hc(gb_di3, score = 'aic')
+
+# Di seguito la Bayesian Network generata con criterio "AIC"
+# costruita con le variabili risultate più significative, suddivise in terzili 
+
+plot(gb_aic.bn)
+
+```
+
+Come avevo fatto precedentemente per tutto il dataset, ho aumentato il numero di suddivisioni delle mie variabili continue. 
+
+```{r bayesii}
+gb_di4 <- gb[c(-1,-5,-9)]
+gb_di4 <- data.frame(gb_di4)
+# Discretizazione delle variabili nel dataframe ridotto gb
+num_bins <- 4  
+
+# Ciclo attraverso le colonne e discretizzazione 
+for (col in names(gb_di4)) {
+  gb_di4[[col]] <- cut(gb_di4[[col]], breaks = num_bins, labels = FALSE)
+}
+
+gb_di4 <- lapply(gb_di4, as.factor)
+gb_di4 <- as.data.frame(gb_di4)
+
+# Summary del dataframe discretizzato
+summary(gb_di4)
+
+
+gb_bic4.bn <- hc(gb_di4, score = 'bic')  # hill climbing
+
+# Di seguito la Bayesian Network generata con criterio "BIC"
+# costruita con le variabili risultate più significative, suddivise in quartili 
+
+plot(gb_bic4.bn)
+
+gb_aic4.bn <- hc(gb_di4, score = 'aic')
+
+# Di seguito la Bayesian Network generata con criterio "AIC"
+# costruita con le variabili risultate più significative, suddivise in quartili 
+
+plot(gb_aic4.bn)
+```
+
+Osservo che aumentando le suddivisioni, anche nel DAG costruito a partire da solo le variabili più significative, sparisce la dipendenza da "Ellipt" per essere sostituita da una dipendenza da "S0". 
+
+E' interessante osservare come piccole variazioni nelle suddivisioni hanno portato a cambiamenti notevoli, per via delle differenti sensibilità di ciascuna suddivisione rispetto alla distribuzione dei dati del dataset.
+
+Dopo aver osservato il grafo ottenuto con il metodo Hill Climbing, con suddivisione delle variabili continue in terzili (quello che meglio rispecchia il modello lineare), ho utilizzato il comando "dag" per ricostruire il DAG ottenuto. La motivazione è che tale comando offre una rappresentazione esplicita del modello probabilistico appreso dall'algoritmo di Hill Climbing e in particolare consente di sfruttare altre funzioni statistiche, come il comando "querygrain", per effettuare osservazioni specifiche sulla distribuzione delle variabili.
+
+```{r dagg}
+library(gRain)
+library(gRim)
+library(ggm)
+gdag1 <- dag(~Mv*Ellipt + Ellipt*VHB + S0*Mv + r.tidal*Mv + Conc*S0 + log.rho*Conc)
+plot(gdag1)
+
+gb_bn <- grain(gdag1, data = gb_di3)
+
+```
+
+La funzione "querygrain" viene utilizzata per eseguire una query sulla rete bayesiana "gb_bn".
+Il parametro "nodes" specifica le variabili le cui probabilità sono di interesse. 
+Il parametro "type = conditional" indica che l'obiettivo è osservare le probabilità condizionali del DAG.
+
+Le tabelle ottenute riportano come la probabilità di un valore della prima variabile può variare in base ai diversi valori possibili della seconda variabile (o viceversa) secondo le relazioni specifiche definite nella struttura della rete bayesiana.
+
+```{r dcondiszi}
+querygrain(gb_bn, nodes=c("Mv", "Ellipt"), type="conditional")
+
+```
+La tabella fornisce un'indicazione delle relazioni probabilistiche tra "Mv" ed "Ellipt". Se i valori di "Ellipt" sono bassi (nel primo terzile) la probabilità che "Mv" abbia valori bassi è  0.6052632.
+Si nota come, effettivamente, al crescere dei valori di "Ellipt" la probabilità che il valore di "Mv" sia basso diminuisce, rispettando l'ipotesi di dipendenza fra i parametri. 
+Osservo, in particolare, che se il valore di "Ellipt" appartiene al terzo terzile la probabilità che il valore di "Mv" appartenga al primo terzile risulta pari a 0. 
+
+\newpage
+```{r dcondizi}
+querygrain(gb_bn, nodes=c("Mv", "VHB"), type="conditional")
+
+querygrain(gb_bn, nodes=c("Ellipt", "VHB"), type="conditional")
+```
+
+Il modello ottenuto da questo studio grafico sembra confermare la plausibilità del modello *Mv ~ Ellipt + VHB* ottenuto con i metodi precedenti, anche se nel caso grafico la dipendenza di "VHB" non è diretta. 
+Tuttavia anche se sono stato utilizzati due approcci differenti è emersa l'importanza di queste due variabili in uno studio della stima di "Mv".
+
+# Conclusione
+
+Lo studio effettuato ha presentato delle difficoltà soprattutto durante le fasi iniziali del progetto, per via della complessità dell'argomento e dell'elevato numero di variabili nel dataset. Nonostante ciò, ha prodotto risultati soddisfacenti, allineati con l'obiettivo prefissato. 
+Il modello identificato, si è dimostrato un equilibrato compromesso tra espressività e parsimonia. 
+
+L'osservazione di una dipendenza lineare tra la magnitudine assoluta, l'ellitticità ("Ellipt") e il livello del ramo orizzontale ("VHB") fornisce importanti intuizioni sulla natura intrinseca dei cluster globulari.
+L'ellitticità emerge come un fattore chiave nella determinazione della magnitudine assoluta, suggerendo che la geometria del cluster globulare può influire direttamente sulla sua luminosità intrinseca. Inoltre, la relazione con il livello del ramo orizzontale  evidenzia il ruolo significativo dell'età e dell'evoluzione stellare nella determinazione della magnitudine assoluta dei cluster. In particolare, all'aumentare dell'ellitticità del cluster, la luminosità diminuisce, mentre all'aumentare del livello del ramo orizzontale, la luminosità aumenta.
